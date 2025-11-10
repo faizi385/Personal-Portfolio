@@ -191,12 +191,12 @@
                 <!-- START CONTACT FORM DESIGN AREA -->
                 <div class="col-lg-8">
                     <div class="contact-form contact-form-area wow fadeInUp delay-0-4s">
-                        <form id="contactForm" class="contact-form" action="#" method="post">
+                        <form id="contactForm" class="contact-form" action="sendmail.php" method="post">
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label for="name">Full Name</label>
-                                        <input type="text" id="name" class="form-control" value="" placeholder="Steve Milner" required="" data-error="Please enter your Name" />
+                                        <input type="text" id="name" name="name" class="form-control" value="" placeholder="Steve Milner" required="" data-error="Please enter your Name" />
                                         <label for="name" class="for-icon"><i class="far fa-user"></i></label>
                                         <div class="help-block with-errors"></div>
                                     </div>
@@ -204,7 +204,7 @@
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label for="email">Email Address</label>
-                                        <input type="email" id="email" class="form-control" value="" placeholder="hello@websitename.com" required="" data-error="Please enter your Email" />
+                                        <input type="email" id="email" name="email" class="form-control" value="" placeholder="hello@websitename.com" required="" data-error="Please enter your Email" />
                                         <label for="email" class="for-icon"><i class="far fa-envelope"></i></label>
                                         <div class="help-block with-errors"></div>
                                     </div>
@@ -212,7 +212,7 @@
                                 <div class="col-md-12">
                                     <div class="form-group">
                                         <label for="name">Subject</label>
-                                        <input type="text" id="subject" class="form-control" value="" placeholder="Your Subject" required="" data-error="Please enter your Name" />
+                                        <input type="text" id="subject" name="subject" class="form-control" value="" placeholder="Your Subject" required="" data-error="Please enter your Subject" />
                                         <label for="name" class="for-icon"><i class="far fa-user"></i></label>
                                         <div class="help-block with-errors"></div>
                                     </div>
@@ -220,7 +220,7 @@
                                 <div class="col-md-12">
                                     <div class="form-group">
                                         <label for="message">Your Message</label>
-                                        <textarea name="message" id="message" class="form-control" rows="4" placeholder="Write Your message" required="" data-error="Please Write your Message"></textarea>
+                                        <textarea name="message" id="message" name="message" class="form-control" rows="4" placeholder="Write Your message" required="" data-error="Please Write your Message"></textarea>
                                         <div class="help-block with-errors"></div>
                                     </div>
                                 </div>
@@ -245,6 +245,237 @@
         </div>
     </section>
     <!-- / END CONTACT DESIGN AREA -->
+    <!-- Toast Notification Styles -->
+    <style>
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+    }
+    
+    .toast {
+        background: #fff;
+        border-left: 4px solid #4CAF50;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        padding: 16px 24px;
+        margin-bottom: 16px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        transform: translateX(120%);
+        transition: transform 0.3s ease-in-out;
+        max-width: 350px;
+    }
+    
+    .toast.show {
+        transform: translateX(0);
+    }
+    
+    .toast.error {
+        border-left-color: #f44336;
+    }
+    
+    .toast i {
+        margin-right: 12px;
+        font-size: 20px;
+    }
+    
+    .toast.success i {
+        color: #4CAF50;
+    }
+    
+    .toast.error i {
+        color: #f44336;
+    }
+    
+    .toast-content {
+        flex: 1;
+    }
+    
+    .toast-title {
+        font-weight: 600;
+        margin: 0 0 4px 0;
+    }
+    
+    .toast-message {
+        margin: 0;
+        font-size: 14px;
+        color: #666;
+    }
+    
+    .toast-close {
+        background: none;
+        border: none;
+        font-size: 16px;
+        cursor: pointer;
+        color: #999;
+        margin-left: 16px;
+        padding: 0;
+    }
+    </style>
+    
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+    
+    <!-- AJAX Form Submission Script -->
+    <script>
+    // Toast notification function
+    function showToast(type, title, message) {
+        const toastContainer = document.getElementById('toastContainer');
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        
+        const icon = type === 'success' ? '✓' : '✕';
+        
+        toast.innerHTML = `
+            <i>${icon}</i>
+            <div class="toast-content">
+                <div class="toast-title">${title}</div>
+                <p class="toast-message">${message}</p>
+            </div>
+            <button class="toast-close" aria-label="Close">&times;</button>
+        `;
+        
+        toastContainer.appendChild(toast);
+        
+        // Show toast with animation
+        setTimeout(() => {
+            toast.classList.add('show');
+        }, 10);
+        
+        // Auto-remove toast after delay
+        const removeToast = () => {
+            toast.classList.remove('show');
+            setTimeout(() => {
+                toast.remove();
+            }, 300);
+        };
+        
+        // Close button
+        const closeButton = toast.querySelector('.toast-close');
+        closeButton.addEventListener('click', removeToast);
+        
+        // Auto-hide after 5 seconds
+        setTimeout(removeToast, 5000);
+    }
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        const contactForm = document.getElementById('contactForm');
+        const successMessage = document.querySelector('.input-success');
+        const errorMessage = document.querySelector('.input-error');
+        const submitButton = contactForm.querySelector('button[type="submit"]');
+        const originalButtonText = submitButton.innerHTML;
+
+        // Ensure success and error messages are hidden by default
+        successMessage.style.display = 'none';
+        errorMessage.style.display = 'none';
+
+        // Track form submission state
+        let formSubmitted = false;
+        
+        // Remove any existing event listeners to prevent duplicates
+        const newForm = contactForm.cloneNode(true);
+        contactForm.parentNode.replaceChild(newForm, contactForm);
+        
+        // Get new references after replacing the form
+        const newContactForm = document.getElementById('contactForm');
+        const newSubmitButton = newContactForm.querySelector('button[type="submit"]');
+        
+        newContactForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Prevent multiple submissions
+            if (formSubmitted) {
+                console.log('Form already submitted');
+                return;
+            }
+            
+            formSubmitted = true;
+            
+            // Show loading state
+            newSubmitButton.disabled = true;
+            newSubmitButton.innerHTML = 'Sending...';
+            
+            // Hide previous messages
+            successMessage.style.display = 'none';
+            errorMessage.style.display = 'none';
+            
+            // Get form data
+            const formData = new FormData(newContactForm);
+            
+            try {
+                // Use absolute URL to ensure we're hitting the right endpoint
+                const scriptUrl = window.location.pathname.endsWith('contact.html') 
+                    ? 'sendmail.php' 
+                    : 'Portfolio/sendmail.php';
+                
+                // Send AJAX request with proper headers
+                const response = await fetch(scriptUrl, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                if (data.success) {
+                    // Show success message and toast
+                    successMessage.style.display = 'block';
+                    showToast('success', 'Success!', 'Your message has been sent successfully.');
+                    // Reset form
+                    newContactForm.reset();
+                } else {
+                    // Show error message and toast
+                    const errorMsg = data.message || 'Sorry, there was an error sending your message. Please try again.';
+                    errorMessage.textContent = errorMsg;
+                    errorMessage.style.display = 'block';
+                    showToast('error', 'Error', errorMsg);
+                    
+                    // If there are validation errors, show them
+                    if (data.errors && data.errors.length > 0) {
+                        errorMessage.textContent = data.errors.join(' ');
+                    }
+                    
+                    // Reset form submission state on error
+                    formSubmitted = false;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                const errorMsg = 'Unable to connect to the server. Please check your internet connection and try again.';
+                errorMessage.textContent = errorMsg;
+                errorMessage.style.display = 'block';
+                showToast('error', 'Connection Error', errorMsg);
+                
+                // Reset form submission state on error
+                formSubmitted = false;
+            } finally {
+                // Re-enable the submit button
+                newSubmitButton.disabled = false;
+                newSubmitButton.innerHTML = originalButtonText;
+                
+                // Scroll to the message
+                const messageElement = successMessage.style.display === 'block' ? successMessage : errorMessage;
+                messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                // Hide success message after 5 seconds
+                if (successMessage.style.display === 'block') {
+                    setTimeout(() => {
+                        successMessage.style.display = 'none';
+                        // Reset form submission state after success message hides
+                        formSubmitted = false;
+                    }, 5000);
+                }
+            }
+        });
+    });
+    </script>
+    
     <!-- START FOOTER DESIGN AREA -->
     <footer class="main-footer">
         <div class="container">

@@ -577,7 +577,7 @@
                 <!-- START CONTACT FORM DESIGN AREA -->
                 <div class="col-lg-8">
                     <div class="contact-form contact-form-area wow fadeInUp delay-0-4s">
-                        <form id="contactForm" class="contact-form" action="#" method="post" novalidate>
+                        <form id="contactForm" class="contact-form" action="https://formspree.io/f/mrbrzwgq" method="POST">
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group">
@@ -590,7 +590,7 @@
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label for="email">Email Address</label>
-                                        <input type="email" id="email" name="email" class="form-control" value="" placeholder="hello@websitename.com" required="" data-error="Please enter your Email" />
+                                        <input type="email" id="email" name="_replyto" class="form-control" value="" placeholder="hello@websitename.com" required="" data-error="Please enter your Email" />
                                         <label for="email" class="for-icon"><i class="far fa-envelope"></i></label>
                                         <div class="help-block with-errors"></div>
                                     </div>
@@ -607,6 +607,8 @@
                                     <div class="form-group">
                                         <label for="message">Your Message</label>
                                         <textarea name="message" id="message" class="form-control" rows="4" placeholder="Write Your message" required="" data-error="Please Write your Message"></textarea>
+                                        <!-- Add honeypot field for spam prevention -->
+                                        <input type="text" name="_gotcha" style="display:none">
                                         <div class="help-block with-errors"></div>
                                     </div>
                                 </div>
@@ -770,18 +772,14 @@
     // Contact form submission handler
     document.addEventListener('DOMContentLoaded', function() {
         const contactForm = document.getElementById('contactForm');
-        const successMessage = document.querySelector('.input-success');
-        const errorMessage = document.querySelector('.input-error');
-        const submitButton = contactForm ? contactForm.querySelector('button[type="submit"]') : null;
+        if (!contactForm) return;
         
-        if (!contactForm || !submitButton) return;
+        const submitButton = contactForm.querySelector('button[type="submit"]');
+        if (!submitButton) return;
         
         const originalButtonText = submitButton.innerHTML;
+        const errorMessage = document.querySelector('.input-error');
         let isSubmitting = false;
-        
-        // Ensure success and error messages are hidden by default
-        if (successMessage) successMessage.style.display = 'none';
-        if (errorMessage) errorMessage.style.display = 'none';
         
         contactForm.addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -796,45 +794,28 @@
             submitButton.disabled = true;
             submitButton.innerHTML = 'Sending...';
             
-            // Hide previous messages
-            if (successMessage) successMessage.style.display = 'none';
-            if (errorMessage) errorMessage.style.display = 'none';
-            
-            // Get form data
-            const formData = new FormData(contactForm);
-            
             try {
-                // Determine the correct path to sendmail.php
-                const scriptUrl = 'sendmail.php';
+                const formData = new FormData(contactForm);
                 
-                // Send AJAX request
-                const response = await fetch(scriptUrl, {
+                // Send to Formspree
+                const response = await fetch(contactForm.action, {
                     method: 'POST',
                     body: formData,
                     headers: {
                         'Accept': 'application/json'
-                    }
+                    },
+                    mode: 'cors' // Ensure CORS mode is enabled
                 });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
                 
                 const data = await response.json();
                 
-                if (data.success) {
+                if (response.ok) {
                     // Show success message and toast
-                    if (successMessage) successMessage.style.display = 'block';
-                    showToast('success', 'Success!', 'Your message has been sent successfully.');
-                    // Reset form
+                    showToast('success', 'Success!', 'Your message has been sent successfully!');
                     contactForm.reset();
                 } else {
                     // Show error message and toast
-                    const errorMsg = data.message || 'Sorry, there was an error sending your message. Please try again.';
-                    if (errorMessage) {
-                        errorMessage.textContent = errorMsg;
-                        errorMessage.style.display = 'block';
-                    }
+                    const errorMsg = data.error || 'Sorry, there was an error sending your message.';
                     showToast('error', 'Error', errorMsg);
                 }
             } catch (error) {
@@ -848,11 +829,10 @@
             } finally {
                 // Reset submission state
                 isSubmitting = false;
-                submitButton.disabled = false;
-                submitButton.innerHTML = originalButtonText;
-                
-                // Scroll to the message if needed
-                const messageElement = successMessage && successMessage.style.display === 'block' ? 
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = originalButtonText;
+                }
                     successMessage : errorMessage;
                 if (messageElement && messageElement.style.display === 'block') {
                     messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });

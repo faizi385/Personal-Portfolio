@@ -191,7 +191,7 @@
                 <!-- START CONTACT FORM DESIGN AREA -->
                 <div class="col-lg-8">
                     <div class="contact-form contact-form-area wow fadeInUp delay-0-4s">
-                        <form id="contactForm" class="contact-form" action="sendmail.php" method="post">
+                        <form id="contactForm" class="contact-form" action="https://formspree.io/f/mrbrzwgq" method="POST">
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group">
@@ -204,7 +204,7 @@
                                 <div class="col-md-6">
                                     <div class="form-group">
                                         <label for="email">Email Address</label>
-                                        <input type="email" id="email" name="email" class="form-control" value="" placeholder="hello@websitename.com" required="" data-error="Please enter your Email" />
+                                        <input type="email" id="email" name="_replyto" class="form-control" value="" placeholder="hello@websitename.com" required="" data-error="Please enter your Email" />
                                         <label for="email" class="for-icon"><i class="far fa-envelope"></i></label>
                                         <div class="help-block with-errors"></div>
                                     </div>
@@ -220,7 +220,9 @@
                                 <div class="col-md-12">
                                     <div class="form-group">
                                         <label for="message">Your Message</label>
-                                        <textarea name="message" id="message" name="message" class="form-control" rows="4" placeholder="Write Your message" required="" data-error="Please Write your Message"></textarea>
+                                        <textarea name="message" id="message" class="form-control" rows="4" placeholder="Write Your message" required="" data-error="Please Write your Message"></textarea>
+                                        <!-- Add honeypot field for spam prevention -->
+                                        <input type="text" name="_gotcha" style="display:none">
                                         <div class="help-block with-errors"></div>
                                     </div>
                                 </div>
@@ -231,10 +233,6 @@
                                         </button>
                                         <div id="msgSubmit" class="hidden"></div>
                                     </div>
-                                </div>
-                                <div class="col-md-12 text-center">
-                                    <p class="input-success">We have received your mail, We will get back to you soon!</p>
-                                    <p class="input-error">Sorry, Message could not send! Please try again.</p>
                                 </div>
                             </div>
                         </form>
@@ -368,107 +366,81 @@
         const originalButtonText = submitButton.innerHTML;
 
         // Ensure success and error messages are hidden by default
-        successMessage.style.display = 'none';
-        errorMessage.style.display = 'none';
+        if (successMessage) successMessage.style.display = 'none';
+        if (errorMessage) errorMessage.style.display = 'none';
 
         // Track form submission state
-        let formSubmitted = false;
+        let isSubmitting = false;
         
-        // Remove any existing event listeners to prevent duplicates
-        const newForm = contactForm.cloneNode(true);
-        contactForm.parentNode.replaceChild(newForm, contactForm);
-        
-        // Get new references after replacing the form
-        const newContactForm = document.getElementById('contactForm');
-        const newSubmitButton = newContactForm.querySelector('button[type="submit"]');
-        
-        newContactForm.addEventListener('submit', async function(e) {
+        contactForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             
             // Prevent multiple submissions
-            if (formSubmitted) {
-                console.log('Form already submitted');
+            if (isSubmitting) {
+                console.log('Form already submitting');
                 return;
             }
             
-            formSubmitted = true;
-            
-            // Show loading state
-            newSubmitButton.disabled = true;
-            newSubmitButton.innerHTML = 'Sending...';
+            isSubmitting = true;
+            submitButton.disabled = true;
+            submitButton.innerHTML = 'Sending...';
             
             // Hide previous messages
-            successMessage.style.display = 'none';
-            errorMessage.style.display = 'none';
-            
-            // Get form data
-            const formData = new FormData(newContactForm);
+            if (successMessage) successMessage.style.display = 'none';
+            if (errorMessage) errorMessage.style.display = 'none';
             
             try {
-                // Use absolute URL to ensure we're hitting the right endpoint
-                const scriptUrl = window.location.pathname.endsWith('contact.html') 
-                    ? 'sendmail.php' 
-                    : 'Portfolio/sendmail.php';
-                
-                // Send AJAX request with proper headers
-                const response = await fetch(scriptUrl, {
+                // Use Formspree endpoint
+                const response = await fetch(contactForm.action, {
                     method: 'POST',
-                    body: formData,
+                    body: new FormData(contactForm),
                     headers: {
                         'Accept': 'application/json'
                     }
                 });
                 
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
                 const data = await response.json();
-                if (data.success) {
+                
+                if (response.ok) {
                     // Show success message and toast
-                    successMessage.style.display = 'block';
+                    if (successMessage) successMessage.style.display = 'block';
                     showToast('success', 'Success!', 'Your message has been sent successfully.');
                     // Reset form
-                    newContactForm.reset();
+                    contactForm.reset();
                 } else {
                     // Show error message and toast
-                    const errorMsg = data.message || 'Sorry, there was an error sending your message. Please try again.';
-                    errorMessage.textContent = errorMsg;
-                    errorMessage.style.display = 'block';
-                    showToast('error', 'Error', errorMsg);
-                    
-                    // If there are validation errors, show them
-                    if (data.errors && data.errors.length > 0) {
-                        errorMessage.textContent = data.errors.join(' ');
+                    const errorMsg = data.error || 'Sorry, there was an error sending your message. Please try again.';
+                    if (errorMessage) {
+                        errorMessage.textContent = errorMsg;
+                        errorMessage.style.display = 'block';
                     }
-                    
-                    // Reset form submission state on error
-                    formSubmitted = false;
+                    showToast('error', 'Error', errorMsg);
                 }
             } catch (error) {
                 console.error('Error:', error);
                 const errorMsg = 'Unable to connect to the server. Please check your internet connection and try again.';
-                errorMessage.textContent = errorMsg;
-                errorMessage.style.display = 'block';
+                if (errorMessage) {
+                    errorMessage.textContent = errorMsg;
+                    errorMessage.style.display = 'block';
+                }
                 showToast('error', 'Connection Error', errorMsg);
-                
-                // Reset form submission state on error
-                formSubmitted = false;
             } finally {
-                // Re-enable the submit button
-                newSubmitButton.disabled = false;
-                newSubmitButton.innerHTML = originalButtonText;
+                // Reset submission state
+                isSubmitting = false;
+                submitButton.disabled = false;
+                submitButton.innerHTML = originalButtonText;
                 
-                // Scroll to the message
-                const messageElement = successMessage.style.display === 'block' ? successMessage : errorMessage;
-                messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Scroll to the message if needed
+                const messageElement = successMessage && successMessage.style.display === 'block' ? 
+                    successMessage : errorMessage;
+                if (messageElement && messageElement.style.display === 'block') {
+                    messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
                 
                 // Hide success message after 5 seconds
-                if (successMessage.style.display === 'block') {
+                if (successMessage && successMessage.style.display === 'block') {
                     setTimeout(() => {
                         successMessage.style.display = 'none';
-                        // Reset form submission state after success message hides
-                        formSubmitted = false;
                     }, 5000);
                 }
             }
